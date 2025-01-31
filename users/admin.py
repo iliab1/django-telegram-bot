@@ -24,7 +24,7 @@ class UserAdmin(admin.ModelAdmin):
 
     actions = ['broadcast']
 
-    def broadcast(self, request, queryset):
+    async def broadcast(self, request, queryset):
         """ Select users via check mark in django-admin panel, then select "Broadcast" to send message"""
         user_ids = queryset.values_list('user_id', flat=True).distinct().iterator()
         if 'apply' in request.POST:
@@ -32,7 +32,7 @@ class UserAdmin(admin.ModelAdmin):
 
             if DEBUG:  # for test / debug purposes - run in same thread
                 for user_id in user_ids:
-                    send_one_message(
+                    await send_one_message(
                         user_id=user_id,
                         text=broadcast_message_text,
                     )

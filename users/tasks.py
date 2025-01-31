@@ -16,22 +16,22 @@ logger = get_task_logger(__name__)
 
 
 @app.task(ignore_result=True)
-def broadcast_message(
+async def broadcast_message(
     user_ids: List[Union[str, int]],
     text: str,
     entities: Optional[List[Dict]] = None,
     reply_markup: Optional[List[List[Dict]]] = None,
     sleep_between: float = 0.4,
-    parse_mode=telegram.ParseMode.HTML,
+    parse_mode=telegram.constants.ParseMode.HTML,
 ) -> None:
     """ It's used to broadcast message to big amount of users """
     logger.info(f"Going to send message: '{text}' to {len(user_ids)} users")
 
-    entities_ = from_celery_entities_to_entities(entities)
-    reply_markup_ = from_celery_markup_to_markup(reply_markup)
+    entities_ = await from_celery_entities_to_entities(entities)
+    reply_markup_ = await from_celery_markup_to_markup(reply_markup)
     for user_id in user_ids:
         try:
-            send_one_message(
+            await send_one_message(
                 user_id=user_id,
                 text=text,
                 entities=entities_,

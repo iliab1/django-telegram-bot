@@ -33,39 +33,50 @@
     'file_unique_id': 'AgADmggAAgnBgEg', 'file_size': 1260506}, 'caption': '50603'
 }
 """
-from typing import Dict
+from typing import Dict, Optional
 
 import telegram
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
 
 from users.models import User
 
 ALL_TG_FILE_TYPES = ["document", "video_note", "voice", "sticker", "audio", "video", "animation", "photo"]
 
 
-def _get_file_id(m: Dict) -> str:
-    """ extract file_id from message (and file type?) """
-
+async def _get_file_id(m: Dict) -> Optional[str]:
+    """ Extracts file_id from message (handling multiple media types) """
     for doc_type in ALL_TG_FILE_TYPES:
         if doc_type in m and doc_type != "photo":
             return m[doc_type]["file_id"]
 
     if "photo" in m:
-        best_photo = m["photo"][-1]
+        best_photo = m["photo"][-1]  # Get highest-resolution photo
         return best_photo["file_id"]
 
+    return None  # Return None if no file_id found
 
-def show_file_id(update: Update, context: CallbackContext) -> None:
+
+async def show_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """ Returns file_id of the attached file/media """
-    u = User.get_user(update, context)
+    u = await User.get_user(update, context)
 
     if u.is_admin:
         update_json = update.to_dict()
-        file_id = _get_file_id(update_json["message"])
-        message_id = update_json["message"]["message_id"]
-        update.message.reply_text(
-            text=f"`{file_id}`",
-            parse_mode=telegram.ParseMode.HTML,
-            reply_to_message_id=message_id
-        )
+        message = update_json.get("message", {})
+
+        file_id = await _get_file_id(message)
+        message_id = message.get("message_id")
+
+        if file_id:
+            await update.message.reply_text(
+                text=f"`{file_id}`",
+                parse_mode=ParseMode.MARKDOWN_V2,  # Markdown formatting for better display
+                reply_to_message_id=message_id
+            )
+        else:
+            await update.message.reply_text(
+                text="❌ No file ID found in this message.",
+                reply_to_message_id=message_id
+            )
